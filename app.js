@@ -43,7 +43,6 @@ async function uploadImage(event, kind) {
   const file = event.target.files[0];
   if (!file) return;
   const uploadVersion = ++uploadVersions[kind];
-  event.target.value = "";
   let url;
   try {
     if (file.size > 30 * 1024 * 1024) {
