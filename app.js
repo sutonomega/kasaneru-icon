@@ -7,14 +7,6 @@ let avatar = null,
   offsetX = 0,
   offsetY = 0,
   scale = 1;
-const uploadVersions = { avatar: 0, frame: 0 };
-
-async function isPngFile(file) {
-  const signature = new Uint8Array(await file.slice(0, 8).arrayBuffer());
-  const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
-  return signature.length === pngSignature.length &&
-    pngSignature.every((byte, index) => signature[index] === byte);
-}
 function drawPreview() {
   context.clearRect(0, 0, 1024, 1024);
   if (avatar) {
@@ -42,27 +34,19 @@ function resetTransform() {
 async function uploadImage(event, kind) {
   const file = event.target.files[0];
   if (!file) return;
-  const uploadVersion = ++uploadVersions[kind];
-  event.target.value = "";
-  let url;
+  if (file.size > 30 * 1024 * 1024) {
+    status.textContent = "30MB以下の画像を選んでください";
+    return;
+  }
+  if (kind === "frame" && file.type !== "image/png") {
+    status.textContent = "フレームにはPNG画像を選んでください";
+    return;
+  }
+  const url = URL.createObjectURL(file);
   try {
-    if (file.size > 30 * 1024 * 1024) {
-      status.textContent = "30MB以下の画像を選んでください";
-      return;
-    }
-    if (kind === "frame") {
-      const isPng = await isPngFile(file);
-      if (uploadVersion !== uploadVersions[kind]) return;
-      if (!isPng) {
-        status.textContent = "フレームにはPNG画像を選んでください";
-        return;
-      }
-    }
-    url = URL.createObjectURL(file);
     const image = new Image();
     image.src = url;
     await image.decode();
-    if (uploadVersion !== uploadVersions[kind]) return;
     if (kind === "avatar") {
       avatar = image;
       resetTransform();
@@ -73,11 +57,11 @@ async function uploadImage(event, kind) {
         ? "準備できました。位置を調整して保存できます"
         : "もう一枚の画像を選んでください";
   } catch {
-    if (uploadVersion !== uploadVersions[kind]) return;
     status.textContent =
       "画像を読み込めませんでした。PNG・JPEG・WebPをお試しください";
   } finally {
-    if (url) URL.revokeObjectURL(url);
+    URL.revokeObjectURL(url);
+    event.target.value = "";
   }
 }
 document.querySelector("#avatar").onchange = (event) => uploadImage(event, "avatar");
@@ -125,8 +109,6 @@ document.querySelector("#save").onclick = () => {
   }, "image/png");
 };
 document.querySelector("#demo").onclick = () => {
-  uploadVersions.avatar += 1;
-  uploadVersions.frame += 1;
   avatar = document.createElement("canvas");
   avatar.width = avatar.height = 1024;
   const photo = avatar.getContext("2d");
